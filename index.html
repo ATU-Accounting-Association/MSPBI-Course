@@ -224,7 +224,7 @@ footer{padding:50px 0 24px;background:#06111e;color:#dbe5ef}
   }
   // In an RTL scroll container, decreasing scrollLeft moves the logos
   // visually from LEFT to RIGHT while retaining their RTL card order.
-  const leftToRightSpeed=0.024;
+  const leftToRightSpeed=0.048;
   function animate(now){
     if(lastFrame && motionAllowed && !document.hidden && !hovering && !focused && !dragging && now>pauseUntil){
       position-=Math.min(now-lastFrame,60)*leftToRightSpeed;
@@ -239,7 +239,7 @@ footer{padding:50px 0 24px;background:#06111e;color:#dbe5ef}
   viewport.addEventListener('mouseleave',()=>{hovering=false;dragging=false;});
   viewport.addEventListener('focusin',()=>{focused=true;});
   viewport.addEventListener('focusout',()=>{focused=false;pauseFor(1800);});
-  viewport.addEventListener('wheel',()=>pauseFor(2400),{passive:true});
+  viewport.addEventListener('wheel',()=>{hovering=false;focused=false;pauseFor(2400);},{passive:true});
   viewport.addEventListener('scroll',()=>{if(hovering||focused||dragging||performance.now()<=pauseUntil)position=viewport.scrollLeft;if(!dragging && (position>=0 || position < -group.getBoundingClientRect().width)){wrap();}},{passive:true});
   viewport.addEventListener('pointerdown',e=>{
     if(e.button!==0)return;
@@ -254,8 +254,8 @@ footer{padding:50px 0 24px;background:#06111e;color:#dbe5ef}
     else if(width>0 && position < -width){position+=width;dragScroll+=width;}
     viewport.scrollLeft=position;
   });
-  viewport.addEventListener('pointerup',()=>{dragging=false;pauseFor(2500);});
-  viewport.addEventListener('pointercancel',()=>{dragging=false;});
+  viewport.addEventListener('pointerup',()=>{dragging=false;hovering=false;focused=false;pauseFor(2500);});
+  viewport.addEventListener('pointercancel',()=>{dragging=false;hovering=false;focused=false;pauseFor(2500);});
   document.querySelectorAll('.partners-nav').forEach(btn=>btn.addEventListener('click',()=>{
     pauseFor(4500);
     const dir=Number(btn.dataset.dir);

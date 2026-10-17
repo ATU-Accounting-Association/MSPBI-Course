@@ -62,15 +62,15 @@
 .partners-nav{width:38px;height:38px;display:grid;place-items:center;border:1px solid rgba(242,200,17,.43);border-radius:11px;background:#13263c;color:var(--yellow);font-size:21px;cursor:pointer;transition:background .18s,transform .18s}
 .partners-nav:hover{background:#213f57;transform:translateY(-2px)}
 .partners-nav:focus-visible,.footer-social:focus-visible,.partners-scroll:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
-.partners-scroll{width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:var(--yellow) #12253a;overscroll-behavior-x:contain;direction:ltr;cursor:grab;padding:0 16px 14px;touch-action:pan-x pan-y}
+.partners-scroll{width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:var(--yellow) #12253a;overscroll-behavior-x:contain;direction:rtl;cursor:grab;padding:0 16px 14px;touch-action:pan-x pan-y}
 .partners-scroll:active{cursor:grabbing}
 /* Keep vertical page scrolling native while enabling horizontal finger-drag in partners only. */
 @media (pointer:coarse){.top-partners .partners-scroll{touch-action:pan-y}}
 .partners-scroll::-webkit-scrollbar{height:9px}
 .partners-scroll::-webkit-scrollbar-track{background:#14263a;border-radius:20px}
 .partners-scroll::-webkit-scrollbar-thumb{background:#d2ad18;border-radius:20px}
-.top-partners .partners-track{animation:none!important;width:max-content;display:flex;gap:0;direction:ltr}
-.top-partners .partners-group{display:flex;flex:none;gap:12px;padding-inline-end:12px;direction:ltr}
+.top-partners .partners-track{animation:none!important;width:max-content;display:flex;gap:0;direction:rtl}
+.top-partners .partners-group{display:flex;flex:none;gap:12px;padding-inline-end:12px;direction:rtl}
 .top-partners .partner{width:255px;height:98px;flex:0 0 255px;padding:12px;gap:12px;direction:rtl;text-align:right}
 .top-partners .partner-logo{width:70px;height:70px;flex:0 0 70px}
 .top-partners .partner b{font-size:12px;line-height:1.7}
@@ -211,13 +211,23 @@ footer{padding:50px 0 24px;background:#06111e;color:#dbe5ef}
   const group=viewport.querySelector('.partners-group');
   if(!group)return;
   let hovering=false,focused=false,dragging=false,dragX=0,dragScroll=0;
-  let pauseUntil=0,lastFrame=0,position=viewport.scrollLeft;
+  let pauseUntil=0,lastFrame=0,position=0;
+  viewport.scrollLeft=position;
   const motionAllowed=!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function pauseFor(ms){pauseUntil=performance.now()+ms;}
-  function wrap(){const width=group.getBoundingClientRect().width;if(width>0 && position>=width){position-=width;viewport.scrollLeft=position;}}
+  function wrap(){
+    const width=group.getBoundingClientRect().width;
+    if(width<=0)return;
+    if(position>=0)position-=width;
+    else if(position < -width)position+=width;
+    viewport.scrollLeft=position;
+  }
+  // In an RTL scroll container, decreasing scrollLeft moves the logos
+  // visually from LEFT to RIGHT while retaining their RTL card order.
+  const leftToRightSpeed=0.024;
   function animate(now){
     if(lastFrame && motionAllowed && !document.hidden && !hovering && !focused && !dragging && now>pauseUntil){
-      position+=Math.min(now-lastFrame,60)*0.024;
+      position-=Math.min(now-lastFrame,60)*leftToRightSpeed;
       viewport.scrollLeft=position;
       wrap();
     }
@@ -230,20 +240,28 @@ footer{padding:50px 0 24px;background:#06111e;color:#dbe5ef}
   viewport.addEventListener('focusin',()=>{focused=true;});
   viewport.addEventListener('focusout',()=>{focused=false;pauseFor(1800);});
   viewport.addEventListener('wheel',()=>pauseFor(2400),{passive:true});
-  viewport.addEventListener('scroll',()=>{if(hovering||focused||dragging||performance.now()<=pauseUntil)position=viewport.scrollLeft;if(position>group.getBoundingClientRect().width+1){wrap();}},{passive:true});
+  viewport.addEventListener('scroll',()=>{if(hovering||focused||dragging||performance.now()<=pauseUntil)position=viewport.scrollLeft;if(!dragging && (position>=0 || position < -group.getBoundingClientRect().width)){wrap();}},{passive:true});
   viewport.addEventListener('pointerdown',e=>{
     if(e.button!==0)return;
     dragging=true;dragX=e.clientX;dragScroll=viewport.scrollLeft;
     viewport.setPointerCapture(e.pointerId);pauseFor(2800);
   });
-  viewport.addEventListener('pointermove',e=>{if(dragging){viewport.scrollLeft=dragScroll-(e.clientX-dragX);position=viewport.scrollLeft;}});
+  viewport.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    position=dragScroll-(e.clientX-dragX);
+    const width=group.getBoundingClientRect().width;
+    if(width>0 && position>=0){position-=width;dragScroll-=width;}
+    else if(width>0 && position < -width){position+=width;dragScroll+=width;}
+    viewport.scrollLeft=position;
+  });
   viewport.addEventListener('pointerup',()=>{dragging=false;pauseFor(2500);});
   viewport.addEventListener('pointercancel',()=>{dragging=false;});
   document.querySelectorAll('.partners-nav').forEach(btn=>btn.addEventListener('click',()=>{
     pauseFor(4500);
     const dir=Number(btn.dataset.dir);
-    // Allow moving left even from the initial zero position.
-    if(dir<0 && viewport.scrollLeft<4) viewport.scrollLeft=group.getBoundingClientRect().width;
+    // The RTL carousel loops seamlessly in either direction.
+    position=viewport.scrollLeft;
+    if(dir>0 && position>=-1){position=-group.getBoundingClientRect().width;viewport.scrollLeft=position;}
     viewport.scrollBy({left:dir*Math.min(510,viewport.clientWidth*.77),behavior:motionAllowed?'smooth':'instant'});
   }));
 })();
